@@ -123,14 +123,14 @@ export function storage_setAppState(state: AppState){
 }
 
 export function storage_getAppState(): AppState|null{
-  let item = localStorage.getItem("appstate")
-  if(item == null)
-    return null
-  return deserializeAppState(item)
+  try {
+    const item=localStorage.getItem("appstate");
+    return item == null ? null : deserializeAppState(item);
+  } catch { return null; }
 }
 
 export function storage_deleteAppState(){
-  localStorage.removeItem("appstate")
+  try { localStorage.removeItem("appstate"); } catch {}
 }
 
 export function uri_serializeAppState(state: AppState, wantFullUrl=false): string {

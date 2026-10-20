@@ -1,29 +1,15 @@
 <script>
+import {t} from '../core/uiState.js';
 import { blinkStore, manual_render } from "../core/store";
 
+import { registerSettings } from '../core/inspectorState.js';
+import { registerNames, registerAlias, formatInteger } from '../core/inspector.js';
 const blink = blinkStore.getInstance();
 
-let registers = [
-	{ name: "rax", updated: false, str: "0x00" },
-	{ name: "rbx", updated: false, str: "0x00" },
-	{ name: "rcx", updated: false, str: "0x00" },
-	{ name: "rdx", updated: false, str: "0x00" },
-
-	{ name: "rsp", updated: false, str: "0x00" },
-	{ name: "rbp", updated: false, str: "0x00" },
-	{ name: "rsi", updated: false, str: "0x00" },
-	{ name: "rdi", updated: false, str: "0x00" },
-
-	{ name: "r8 ", updated: false, str: "0x00" },
-	{ name: "r9 ", updated: false, str: "0x00" },
-	{ name: "r10", updated: false, str: "0x00" },
-	{ name: "r11", updated: false, str: "0x00" },
-	{ name: "r12", updated: false, str: "0x00" },
-	{ name: "r13", updated: false, str: "0x00" },
-	{ name: "r14", updated: false, str: "0x00" },
-	{ name: "r15", updated: false, str: "0x00" },
-	{ name: "rip", updated: true, str: "0x00" },
-];
+let registers = registerNames.map(name => ({name, value:0n, previous:0n, valid:false}));
+function clearHighlights() {
+  registers = registers.map(r => ({...r, previous:r.value}));
+}
 
 let eflagsStr = "0x0";
 let eflagsBytes = BigInt(0x0);
@@ -137,25 +123,17 @@ let eflags = [
 ];
 
 function updateRegisters() {
-	if (
-		!(
-			blink.state === blink.states.PROGRAM_RUNNING ||
-			blink.state === blink.states.PROGRAM_STOPPED
-		)
-	)
-		return;
-
-	for (const reg of registers) {
-		const new_str = blink.m.stringReadU64(reg.name.trim());
-		if (new_str === reg.str) {
-			reg.updated = false;
-		} else {
-			reg.updated = true;
-			reg.str = new_str;
-		}
-	}
-	//force svelte rendering
-	registers = registers;
+	if (!blink.canInspect()) {
+    registers = registers.map(r => ({...r, valid:false, previous:0n, value:0n}));
+    eflagsStr = '—';
+    eflagsUpdated = false;
+    eflags = eflags.map(f => ({...f, value:false, updated:false}));
+    return;
+  }
+  registers = registers.map(r => {
+    const value = blink.m.readU64(r.name);
+    return {...r, previous:r.valid ? r.value : value, value, valid:true};
+  });
 
 	eflagsStr = blink.m.stringReadU64("flags");
 	const new_eflagsBytes = blink.m.readU64("flags");
@@ -179,19 +157,37 @@ function updateRegisters() {
 }
 
 //rerender registers on machine step
-$: $manual_render && updateRegisters();
+$: $manual_render, updateRegisters();
 </script>
 
-<section class="registers">
+<section class="registers" aria-label={$t('register.values')}>
+  <div class="inspector-controls" on:change={clearHighlights}>
+    <label>{$t('field.width')}
+      <select aria-label={$t('register.width')} bind:value={$registerSettings.bits}>
+        <option value={64}>{$t('field.bits',{bits:64})}</option><option value={32}>{$t('field.bits',{bits:32})}</option><option value={16}>{$t('field.bits',{bits:16})}</option>
+      </select>
+    </label>
+    <label>{$t('field.base')}
+      <select aria-label={$t('register.base')} bind:value={$registerSettings.radix}>
+        <option value={16}>HEX</option><option value={10}>DEC</option><option value={8}>OCT</option><option value={2}>BIN</option>
+      </select>
+    </label>
+    <label>{$t('field.sign')}
+      <select aria-label={$t('register.sign')} bind:value={$registerSettings.signed} disabled={$registerSettings.radix !== 10}>
+        <option value={false}>{$t('field.unsigned')}</option><option value={true}>{$t('field.signed')}</option>
+      </select>
+    </label>
+  </div>
 {#each registers as r}
-    <p>
-      <span class="name infotooltip" tabindex="0" aria-describedby="info-tooltip" class:updated={r.updated}>{r.name}</span> : 
-      <span class="int">{r.str}</span>
+    {@const bits = r.name === 'rip' ? 64 : $registerSettings.bits}
+    <p class="register-row" data-register={r.name}>
+      <span class="name" class:updated={r.valid && BigInt.asUintN(bits, r.value) !== BigInt.asUintN(bits, r.previous)}>{registerAlias(r.name, bits)}</span>
+      <span class="int">{r.valid ? formatInteger(r.value, bits, $registerSettings.radix, r.name !== 'rip' && $registerSettings.signed) : '—'}</span>
     </p>
 {/each}
     <br/>
     <p>
-      <span class="name" class:updated={eflagsUpdated}>eflags</span> : 
+      <span class="name" class:updated={eflagsUpdated}>eflags</span> :
       <span class="int">
             {eflagsStr}
         </span>
@@ -199,9 +195,9 @@ $: $manual_render && updateRegisters();
         [
 {#each eflags as f}
     {#if f.value}
-        <span class="flag infotooltip" tabindex="0" aria-describedby="info-tooltip" class:updated={f.updated} 
-                    title={f.name_long + ": " + f.description}
-                >{f.name_gef}</span>
+        <span class="flag infotooltip" role="img" aria-label={$t(`flags.${f.name}`)} class:updated={f.updated}
+                    title={$t(`flags.${f.name}`)}
+                >{f.name}</span>
     {/if}
             <span></span>
 {/each}
@@ -220,6 +216,8 @@ $: $manual_render && updateRegisters();
   font-family: var(--code-font-family);
   font-size: .9rem;
 }
+.register-row { display:grid; grid-template-columns:4ch minmax(0, 1fr); gap:.6rem; }
+.register-row .int { overflow-wrap:anywhere; min-width:0; }
 .registers p{
   margin: 0;
 }

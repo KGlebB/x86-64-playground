@@ -1,9 +1,10 @@
 {
-  "name": "svelte_blinkenweb",
+  "name": "x64-lab",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test": "node --test tests/inspector.test.mjs tests/symbols.test.mjs tests/ui.test.mjs",
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview"

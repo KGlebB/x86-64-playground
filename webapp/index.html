@@ -1,43 +1,41 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
-
-    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="shortcut icon" href="/favicon.ico" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <meta name="apple-mobile-web-app-title" content="x64" />
-    <link rel="manifest" href="/site.webmanifest" />
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>x86-64 playground</title>
-
-    <meta name="description" content="An online assembly editor and debugger for the x86-64 architecture. The quickest way to run, debug, and share assembly snippets for a wide range of amd64 assemblers - GNU binutils, Fasm, Nasm" />
-    <meta name="keywords" content="Gdb, x86-64, x64, CTF, assembly, debugger, Fasm, Binutils, webassembly, wasm binutils, wasm assembler" />
-    <meta name="author" content="https://halb.it" />
-    <link rel="canonical" href="https://app.x64.halb.it/" />
-    <meta name="robots" content="index, follow" />
-    
-    <meta property="og:title" content="X86-64 playground" />
-    <meta property="og:description" content="An online assembly editor and debugger for the x86-64 architecture. The quickest way to run, debug, and share assembly snippets for a wide range of amd64 assemblers - GNU binutils, Fasm, Nasm" />
-    <meta property="og:image" content="https://app.x64.halb.it/card.jpg" />
-    <meta content="1762" property="og:image:width">
-    <meta content="1068" property="og:image:height">
-    <meta property="og:url" content="https://app.x64.halb.it/" />
-    <meta property="twitter:card" content="https://app.x64.halb.it/card.jpg" />
-    <meta property="og:site_name" content="x86-64 playground" />
-    <meta property="twitter:image:alt" content="x86-64 playground" />
-  </head>
-
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
+    <meta name="theme-color" content="#f6f7fb" />
     <script>
-        window.goatcounter = {
-            path: function(p) { return location.host + p }
-        }
+      // Apply saved UI preferences before loading the app to avoid a theme flash.
+      (() => {
+        let saved = {};
+        try { saved = JSON.parse(localStorage.getItem('x64lab.preferences') || '{}') || {}; } catch {}
+        const theme = ['light','dark'].includes(saved.theme) ? saved.theme : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.lang = saved.locale === 'en' ? 'en' : 'ru';
+        document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#101116' : '#f6f7fb';
+      })();
     </script>
-    <script data-goatcounter="https://analytics.halb.it/count" async src="//analytics.halb.it/count.js"></script>
-  </body>
+    <style>html{background:#f6f7fb}html[data-theme="dark"]{background:#101116}</style>
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <link rel="icon" type="image/png" href="%BASE_URL%favicon-96x96.png" sizes="96x96" />
+    <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" sizes="180x180" />
+    <link rel="manifest" href="%BASE_URL%site.webmanifest" />
+    <meta name="apple-mobile-web-app-title" content="x64 Lab" />
+    <title>x64 Lab · Редактор и отладчик ассемблера</title>
+    <meta name="description" content="Среда x86-64 с русским и английским интерфейсами: пошаговая отладка, просмотр регистров и памяти. Работает в браузере." />
+    <meta name="keywords" content="x86-64, assembly, debugger, ассемблер, отладчик, NASM, FASM, WebAssembly" />
+    <meta name="author" content="KGlebB; based on x86-64 playground by Alberto Ventafridda" />
+    <link rel="canonical" href="https://kglebb.github.io/x86-64-playground/" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:title" content="x64 Lab" />
+    <meta property="og:description" content="A bilingual x86-64 assembly playground with step-by-step debugging, register views, and live memory inspection. Runs entirely in your browser." />
+    <meta property="og:image" content="https://kglebb.github.io/x86-64-playground/card.jpg" />
+    <meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" />
+    <meta property="og:url" content="https://kglebb.github.io/x86-64-playground/" />
+    <meta property="og:type" content="website" /><meta property="og:site_name" content="x64 Lab" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://kglebb.github.io/x86-64-playground/card.jpg" />
+    <meta name="twitter:image:alt" content="x64 Lab assembly editor and debugger" />
+  </head>
+  <body><div id="app"></div><script type="module" src="/src/main.js"></script></body>
 </html>

@@ -1,47 +1,31 @@
-# Svelte + Vite
+# x64 Lab web application
 
-This template should help get you started developing with Svelte in Vite.
+Svelte 4 + Vite 5. Use Node 20 and npm 10 as declared in `package.json`.
 
-## Recommended IDE Setup
-
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
-
-## Need an official Svelte framework?
-
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
-
-## Technical considerations
-
-**Why use this over SvelteKit?**
-
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
-
-This template contains as little as possible to get started with Vite + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
-
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
-
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
-
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
-
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `checkJs` in the JS template?**
-
-It is likely that most cases of changing variable types in runtime are likely to be accidental, rather than deliberate. This provides advanced typechecking out of the box. Should you like to take advantage of the dynamically-typed nature of JavaScript, it is trivial to change the configuration.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/sveltejs/svelte-hmr/tree/master/packages/svelte-hmr#preservation-of-local-state).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```js
-// store.js
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
+```sh
+npm ci
+npm run dev
+npm test
+npm run build
+npm run preview
 ```
+
+Serve the application under `/x86-64-playground/`. The committed WASM and assembler binaries are sufficient for interface development. See [the emulator build guide](../docs/setup.md) to change Blink itself.
+
+## UI state and translations
+
+`src/core/preferences.js` reads and validates `x64lab.preferences` in browser storage. The first locale is Russian and the initial theme follows the OS. `uiState.js` exposes the preference store and reactive translator; `messages.js` contains matching English/Russian keys and parameterized errors. UI preferences do not change the existing saved source or Share format. Theme colors and Prism variables are in `src/styles/`.
+
+The global header and toolbar are shared by desktop and mobile layouts. Desktop panels use PaneForge. Narrow screens keep all five panels mounted behind accessible tabs. Theme and locale changes update text and CSS without recreating the editor or emulator.
+
+## Register and memory inspection
+
+General-purpose register widths are 64/32/16 bits; RIP stays 64-bit. Values use BigInt, and signed interpretation applies only to decimal output. Memory elements use little-endian groups of 1/2/4/8 bytes. Missing bytes display Unavailable rather than zero.
+
+The memory table accepts an address, 64-bit register, or FASM/NASM label, optionally followed by a numeric offset. Addresses accept `0x`, `0o`, `0b`, or decimal notation; qualify local labels such as `array.local`. Selecting a label enables Auto element size. FASM symbolic output and NASM ELF symbols plus listings provide addresses and unambiguous types. Mixed declarations require a manual size. Row count is independent of array length; later rows may show following memory. GNU as and uploaded ELF programs use manual addresses/registers. Floating-point decoding is not provided.
+
+Values refresh after steps, stops, input waits, and Refresh, plus emulator yields during continuous execution (up to five times per second). The debugger does not write memory.
+
+## Verification
+
+`npm test` uses Node's test runner, including actual execution of the committed emulator and FASM/NASM binaries. `npm run build` produces the static Pages artifact. Browser checks should cover both locales, both themes, 390/768/1440 px widths, focus and menus, live memory updates, input waits, and preference persistence. The Pages workflow runs tests before the production build.

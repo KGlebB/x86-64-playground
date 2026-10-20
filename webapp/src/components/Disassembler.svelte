@@ -1,4 +1,5 @@
 <script>
+import {t} from '../core/uiState.js';
 import { onMount } from "svelte";
 import { blinkStore, manual_render } from "../core/store";
 
@@ -11,6 +12,8 @@ $: program_stopped = $blinkStore.state === blink.states.PROGRAM_STOPPED;
 let elem;
 let first_line = "";
 let disassebly_fail = false;
+let inspectable = false;
+$: $manual_render, inspectable = blink.canInspect();
 
 function getFirstLine(mem, startPtr, line_len) {
 	let str = "";
@@ -53,19 +56,12 @@ function scrollRip(elem, currline) {
 function updateDis() {
 	if (!blink.m) return;
 	if (!elem) return;
-	if (
-		!(
-			blink.state === blink.states.PROGRAM_RUNNING ||
-			blink.state === blink.states.PROGRAM_STOPPED
-		)
-	) {
-		first_line = "";
-		return;
-	}
+	if (!blink.canInspect()) { first_line = ""; elem.innerHTML = ""; return; }
+  disassebly_fail = false;
 
 	if (
 		blink.state === blink.states.PROGRAM_STOPPED &&
-		blink.stopReason.loadFail
+		blink.stopReason?.loadFail
 	) {
 		disassebly_fail = true;
 		first_line = "";
@@ -126,7 +122,7 @@ function updateDis() {
 //rendering shenaningans.
 //this is faster because this specific component is
 //manually updating the DOM, bypassing the optimized svelte renderer
-$: $manual_render && updateDis();
+$: $manual_render, updateDis();
 
 onMount(async () => {
 	updateDis();
@@ -136,21 +132,13 @@ onMount(async () => {
 <div class="disass" class:fail={disassebly_fail} class:exit={program_stopped}>
   {#if disassebly_fail}
     <div class="box">
-      <p>Disassembly failed</p>
+      <p>{$t('disassembly.failed')}</p>
     </div>
   {/if}
-  <table>
+  {#if !inspectable}<p class="empty-message">{$t('disassembly.empty')}</p>{/if}
+  <table hidden={!inspectable}>
     <tbody bind:this={elem} >
-      {#each Array(100) as _}
-        <tr>
-          <td class="addr">0000000</td>
-          <td class="hex">00 00</td>
-          <td class="str">add 
-            <span class="brown">BYTE PTR [</span><span class="red">eax</span><span class="brown">]</span>,
-            <span class="red">al</span>
-          </td>
-        </tr>
-      {/each}
+
     </tbody>
   </table>
 </div>
@@ -164,7 +152,7 @@ onMount(async () => {
       var(--theme-dis-fail-stripebg2) 2px,
       var(--theme-dis-fail-stripebg2) 16px
       );
-    min-height: calc(100vh - 2rem);
+    min-height: 100%;
   }
   .fail table{
     display: none;

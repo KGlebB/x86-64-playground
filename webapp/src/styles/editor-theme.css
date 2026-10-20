@@ -1,0 +1,17 @@
+
+/* A single variable-driven Prism skin keeps editor DOM, selection and extensions intact. */
+.prism-code-editor {
+  font-family:var(--code-font-family);font-size:13px;line-height:1.7;color:var(--theme-text-fg);caret-color:var(--theme-primary);
+  --editor__bg:var(--theme-panel-bg);--widget__bg:var(--theme-panel-bg);--widget__border:var(--theme-panel-border);--widget__color:var(--theme-text-fg);--widget__color-active:var(--theme-text-fg);--widget__color-options:var(--theme-text-fg-disabled);--widget__bg-input:var(--theme-panel-bg);--widget__bg-hover:var(--hover);--widget__bg-active:var(--accent-soft);--widget__focus-ring:var(--theme-primary);--widget__bg-error:var(--danger-bg);--widget__error-ring:var(--danger);--search__bg-find:var(--selection);--editor__bg-highlight:var(--hover);--editor__bg-selection-match:var(--selection);--editor__line-number:var(--theme-text-fg-disabled);--editor__bg-scrollbar:235,10%,50%;--editor__bg-fold:var(--theme-text-fg-disabled);--bg-guide-indent:var(--theme-panel-border);
+}
+.prism-code-editor textarea::selection {color:transparent;background:var(--selection);}
+.prism-code-editor [class*=language-],.prism-code-editor .token.punctuation {color:var(--theme-text-fg);}
+.prism-code-editor .token.keyword,.prism-code-editor .token.operator {color:var(--syntax-keyword);}
+.prism-code-editor .token.number,.prism-code-editor .token.constant,.prism-code-editor .token.boolean {color:var(--syntax-number);}
+.prism-code-editor .token.string,.prism-code-editor .token.char {color:var(--syntax-string);}
+.prism-code-editor .token.register,.prism-code-editor .token.variable {color:var(--syntax-register);}
+.prism-code-editor .token.function,.prism-code-editor .token.label {color:var(--theme-primary);}
+.prism-code-editor .token.comment,.prism-code-editor .token.prolog {color:var(--syntax-comment);}
+.prism-code-editor .active-line {--editor__line-number:var(--theme-text-fg);}
+.prism-code-editor .active-bracket {box-shadow:inset 0 0 0 1px var(--theme-primary);background:var(--accent-soft);}
+.prism-code-editor .token.important,.prism-code-editor .token.bold {font-weight:600;}

@@ -37,6 +37,7 @@ jobs:
       working-directory: ./webapp
       run: |
         npm ci
+        npm test
         npm run build
 
     - name: Upload static files as artifact

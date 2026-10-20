@@ -72,7 +72,7 @@ export const assemblers: Record<string, AssemblerMode> = {
 		binaries: {
 			assembler: {
 				fileurl: fasm_1_73_32,
-				commands: "/assembler /assembly.s /program",
+				commands: "/assembler /assembly.s /program -s /program.fas",
 			},
 		},
 	},
@@ -85,7 +85,7 @@ export const assemblers: Record<string, AssemblerMode> = {
 		binaries: {
 			assembler: {
 				fileurl: nasm_3_00,
-				commands: "/assembler -felf64 /assembly.s -o /program.o",
+				commands: "/assembler -felf64 /assembly.s -o /program.o -l /program.lst",
 			},
 			linker: {
 				fileurl: gnu_ld_2_43_50,

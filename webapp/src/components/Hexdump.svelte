@@ -13,23 +13,21 @@ let blink = blinkStore.getInstance()
 
 let byte_count = 512
 let startAddress = 0n;
-let data = Array(byte_count).fill(0)
+let data = Array(byte_count).fill(null)
 //rerender hexdata on machine step
-$: $manual_render && updateAll();
+$: $manual_render, updateAll();
 
 let hoveredIndex = -1;
 
   function updateAll(){
-    if(!blink.m || !(blink.state == blink.states.PROGRAM_RUNNING || blink.state == blink.states.PROGRAM_STOPPED)){
+    if(!blink.canInspect()){
+      data = Array(byte_count).fill(null);
+      startAddress = 0n;
       return
     }
     startAddress = blink.m.readU64("rsp");
-    for(let i=0; i< byte_count; i++){
-      //todo: check ranges
-      let ptr = blink.m.getPtr("stackmem");
-      data[i] = blink.m.memView.getUint8(ptr + i);
-    }
-    data = data;
+    try { data = blink.readMemory(startAddress, byte_count); }
+    catch { data = Array(byte_count).fill(null); }
   }
 
 
@@ -42,6 +40,7 @@ let hoveredIndex = -1;
   }
 
   function range(number) {
+    if (number === null) return "unavailable";
     if (number == 0) return "00";
     else if (number == 0xff) return "ff";
     else if (number > 0x80) return "large";
@@ -94,7 +93,7 @@ let hoveredIndex = -1;
         <div>{((BigInt(i) + startAddress).toString(16)).padStart(16, "0")}</div>
       {/each}
     </div>
-    <div class="hexdump__hex hexdump__responsivecol" on:mouseover={handleHover}>
+    <div class="hexdump__hex hexdump__responsivecol" on:pointerover={handleHover}>
       {#key colorRegions}
       {#each data as d, i}
         <span
@@ -103,7 +102,7 @@ let hoveredIndex = -1;
           data-color={color(i)}
           data-rounded={rounded(i)}
           class:highlight={i == hoveredIndex}
-          >{("0" + d.toString(16)).slice(-2)}</span
+          >{d === null ? "??" : ("0" + d.toString(16)).slice(-2)}</span
         >
       {/each}
       {/key}
@@ -111,7 +110,7 @@ let hoveredIndex = -1;
     {#if showAscii}
     <div
       class="hexdump__ascii hexdump__responsivecol"
-      on:mouseover={handleHover}
+      on:pointerover={handleHover}
     >
       {#key colorRegions}
       {#each data as d, i}
@@ -239,7 +238,7 @@ let hoveredIndex = -1;
 
   /* hover states */
   .hexdump .highlight {
-    outline: 1px solid gold;
+    outline: 1px solid var(--theme-primary);
   }
 
   /* responsiveness based on "\a" and media queries */

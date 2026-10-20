@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { createDialog, melt } from '@melt-ui/svelte'
-  import Close from './icons/Close.svelte';
-  import Clipboard from './icons/Clipboard.svelte';
+  import {t} from '../core/uiState.js';
+  import Icon from './Icon.svelte';
+  import { createDialog } from '@melt-ui/svelte'
   import { copyTextToClipboard } from '../core/utils';
   import {uri_serializeAppState} from '../core/appState'
   import {blinkStore} from '../core/store'
@@ -12,7 +11,6 @@
     states: { open }
   } = createDialog()
 
-  let inputDomnode:any;
   let uri:string = "";
   let urilen = 0;
   let dangerouslen = 2048;
@@ -21,13 +19,7 @@
     uri = uri_serializeAppState(blinkStore.getAppState(), true)
     urilen = uri.length
 
-    //analytics
-    if(window.hasOwnProperty("goatcounter")){
-      window.goatcounter.count({
-          path:  function(p) { return 'click-share-' + p },
-          event: true,
-      })
-    }
+
   }
 
   function handleCopyClick(){
@@ -39,60 +31,47 @@
 <button {...$trigger} use:trigger
   type="button"
   class="button button--secondary"
-> Share </button>
+> <Icon name="share" size={15}/>{$t('action.share')} </button>
 
 {#if $open}
   <div {...$portalled} use:portalled>
     <div {...$overlay} use:overlay />
     <div {...$content} use:content>
-      <h2 {...$title} use:title>Share</h2>
+      <h2 {...$title} use:title>{$t('share.title')}</h2>
       {#if urilen >= maxlen}
         <p {...$description} use:description>
-          :/
+          {$t('share.tooLarge')}
         </p>
-        <p class="errorbox m-top-1"> Your playground code is too large,
-          and cannot be shared. We are working hard to fix this limitation
+        <p class="errorbox m-top-1"> {$t('share.tooLarge')}
         </p>
       {:else}
         <p {...$description} use:description>
-          Copy this link to share your playground code
-          with others.
+          {$t('share.description')}
         </p>
           <div class="btgroup">
-          <input class="btgroup__button" 
+          <input class="btgroup__button"
             use:updater
             value={uri}
-            on:focus={e=>{ 
+            on:focus={e=>{
               setTimeout(()=>e.target.setSelectionRange(0, -1, "backward"),
               0)
             }}
-            readonly type="text" placeholder="loading..." />
-          <button class="btgroup__button" 
+            readonly type="text" placeholder={$t('share.loading')} aria-label={$t('share.link')} />
+          <button class="btgroup__button"
             on:click={handleCopyClick}
             >
-            <Clipboard
-              width="18px"
-              height="18px"
-              aria-hidden="true"
-              focusable="false"
-            />
-            <span class="visually-hidden">Copy to clipboard</span>
+            <Icon name="copy" size={18}/>
+            <span class="visually-hidden">{$t('action.copy')}</span>
           </button>
           </div>
         {#if urilen >= dangerouslen}
-          <p class="errorbox m-top-1"> Note: This link is {urilen} characters long,
-            some social media will not allow you to post it in its
-            entire length
+          <p class="errorbox m-top-1"> {$t('share.long',{length:urilen})}
           </p>
         {/if}
       {/if}
-      <button {...$close} use:close> 
-        <Close
-          style="fill:var(--theme-primary);"
-          aria-hidden="true"
-          focusable="false"
-        />
-        <span class="visually-hidden">Close</span>
+      <button class="icon-button" {...$close} use:close>
+        <Icon name="close" size={18}/>
+        <span class="visually-hidden">{$t('action.close')}</span>
       </button>
     </div>
   </div>

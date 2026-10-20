@@ -1,4 +1,7 @@
 import blinkenlib from "../assets/blinkenlib.js";
+import {InspectorError} from './messages.js';
+import { readMemoryRange } from './inspector.js';
+import { parseFasmSymbols, parseNasmSymbols } from './debugSymbols.js';
 import {
 	type AssemblerMode,
 	assemblers,
@@ -240,6 +243,13 @@ const signals_info = {
  *
  */
 export class Blink {
+	/** Metadata belongs to the last successful source compilation only. */
+	debugSymbols: Array<{name:string; address:bigint; size:number|null}> = [];
+	debugSource = '';
+	debugInfoError = '';
+	programGeneration = 0;
+	programAvailable = false;
+	#lastLiveRefresh = 0;
 	#stdinHandler: () => number;
 	#stdoutHandler: (charCode: number) => void;
 	#stderrHandler: (charCode: number) => void;
@@ -264,7 +274,7 @@ export class Blink {
 	Module: any; /*Emscripten Module object*/
 	memory: WebAssembly.Memory;
 	state: (typeof this.states)[keyof typeof this.states] = this.states.NOT_READY;
-	stopReason: null | { loadFail: boolean; exitCode: number; details: string };
+	stopReason: null | { loadFail: boolean; exitCode: number; details: string; messageKey:string; params:Record<string,string|number> };
 
 	//program emulation arguments
 	max_argc_len = 200;
@@ -405,8 +415,9 @@ export class Blink {
 			return;
 		}
 		console.log(`blink: ${state}`);
-		this.#stateChangeHandler(state, this.state);
+		const oldState = this.state;
 		this.state = state;
+		this.#stateChangeHandler(state, oldState);
 	}
 
 	/**
@@ -436,6 +447,8 @@ export class Blink {
 			}
 			this.stopReason = {
 				loadFail: false,
+                messageKey:'stop.signal',
+                params:{exitCode,signal:signals_info[sig]?.name || String(sig)},
                 exitCode: exitCode,
                 details: details,
             };
@@ -447,7 +460,10 @@ export class Blink {
         // fake SIGTRAP. it actually indicates preemption.
         // The emulator paused to free the js event loop.
         if(code === sigtrap_codes.BLINK_PREEMPT){
-            console.log("preempt");
+            if (this.programAvailable && performance.now() - this.#lastLiveRefresh >= 200) {
+                this.#lastLiveRefresh = performance.now();
+                this.#signalHandler(sig, code);
+            }
             requestAnimationFrame(() => {
                 this.Module._blinkenlib_preempt_resume();
             });
@@ -484,6 +500,8 @@ export class Blink {
 
 		this.stopReason = {
 			loadFail: false,
+            messageKey:'stop.exit',
+            params:{exitCode:code},
 			exitCode: code,
 			details: `program terminated with Exit(${code})`,
 		};
@@ -541,6 +559,7 @@ export class Blink {
 	 * a new set of compilers will be downloaded.
 	 */
 	async setMode(mode: AssemblerMode) {
+		this.#invalidateProgram();
 		this.mode = mode;
 		this.#setState(this.states.NOT_READY);
 		this.assembler_logs = "";
@@ -581,14 +600,16 @@ export class Blink {
 		if (this.state === this.states.NOT_READY) {
 			return false;
 		}
+		this.#invalidateProgram();
 		const data = new Uint8Array(elfArrayBytes);
 		const FS = this.Module.FS;
 		const stream = FS.open("/program", "w+");
 		FS.write(stream, data, 0, data.length, 0);
 		FS.close(stream);
 		FS.chmod("/program", 0o777);
-
+		this.programAvailable = true;
 		this.starti();
+		return true;
 	}
 
 	/**
@@ -604,10 +625,15 @@ export class Blink {
 		if (this.state === this.states.NOT_READY) {
 			return false;
 		}
+		this.#invalidateProgram();
+		this.debugSource = asmString;
 		this.assembler_logs = "";
 		this.assembler_errors = [];
 		this.#setState(this.states.ASSEMBLING);
 		const FS = this.Module.FS;
+		for (const path of ['/program.fas', '/program.lst']) {
+			if (FS.analyzePath(path).exists) FS.unlink(path);
+		}
 		FS.writeFile("/assembly.s", asmString);
 		//this hack ensures that the function is called after a browser render pass
 		requestAnimationFrame(() => {
@@ -638,6 +664,7 @@ export class Blink {
 			//the current assembler directly generates an ELF without a linker
 			const FS = this.Module.FS;
 			FS.chmod("/program", 0o777);
+			this.#captureDebugSymbols();
 			this.#setState(this.states.PROGRAM_LOADED);
 			this.starti();
 		} else {
@@ -663,8 +690,43 @@ export class Blink {
 		}
 		const FS = this.Module.FS;
 		FS.chmod("/program", 0o777);
+		this.#captureDebugSymbols();
 		this.#setState(this.states.PROGRAM_LOADED);
 		this.starti();
+	}
+
+	#invalidateProgram() {
+		this.programAvailable = false;
+		this.programGeneration++;
+		this.debugSymbols = [];
+		this.debugSource = '';
+		this.debugInfoError = '';
+	}
+
+	#captureDebugSymbols() {
+		this.programAvailable = true;
+		try {
+			const FS = this.Module.FS;
+			if (this.mode.id === 'FASM_trunk') this.debugSymbols = parseFasmSymbols(FS.readFile('/program.fas'));
+			if (this.mode.id === 'NASM_trunk') this.debugSymbols = parseNasmSymbols(FS.readFile('/program'), FS.readFile('/program.lst', {encoding:'utf8'}));
+		} catch (error) {
+			this.debugSymbols = [];
+			this.debugInfoError = 'error.symbols';
+			console.warn('Debug symbols:', error);
+		}
+	}
+
+	canInspect(): boolean {
+		return this.programAvailable && !!this.m && !this.stopReason?.loadFail && (
+			this.state === this.states.PROGRAM_RUNNING ||
+			this.state === this.states.PROGRAM_STOPPED ||
+			this.state === this.states.PROGRAM_READLINE_PAUSE
+		);
+	}
+
+	readMemory(address: bigint, length: number): Array<number|null> {
+		if (!this.canInspect()) throw new InspectorError('error.noProgram');
+		return readMemoryRange(this.memory, (low, high) => this.Module._blinkenlib_spy_address(low, high), address, length);
 	}
 
 	/**
@@ -677,7 +739,7 @@ export class Blink {
 			this.#setEmulationArgs("/program", this.default_argc, this.default_argv);
 			this.Module._blinkenlib_run();
 		} catch (e) {
-			this.stopReason = { loadFail: true, exitCode: 0, details: "invalid ELF" };
+			this.stopReason = { loadFail: true, exitCode: 0, details: "invalid ELF", messageKey:"stop.invalidElf", params:{} };
 			this.#setState(this.states.PROGRAM_STOPPED);
 		}
 	}
@@ -692,7 +754,7 @@ export class Blink {
 			this.Module._blinkenlib_start();
 			this.#setState(this.states.PROGRAM_RUNNING);
 		} catch (e) {
-			this.stopReason = { loadFail: true, exitCode: 0, details: "invalid ELF" };
+			this.stopReason = { loadFail: true, exitCode: 0, details: "invalid ELF", messageKey:"stop.invalidElf", params:{} };
 			this.#setState(this.states.PROGRAM_STOPPED);
 		}
 	}
@@ -702,11 +764,12 @@ export class Blink {
 	 */
 	starti() {
 		try {
+			this.stopReason = null;
 			this.#setEmulationArgs("/program", this.default_argc, this.default_argv);
 			this.Module._blinkenlib_starti();
 			this.#setState(this.states.PROGRAM_RUNNING);
 		} catch (e) {
-			this.stopReason = { loadFail: true, exitCode: 0, details: "invalid ELF" };
+			this.stopReason = { loadFail: true, exitCode: 0, details: "invalid ELF", messageKey:"stop.invalidElf", params:{} };
 			this.#setState(this.states.PROGRAM_STOPPED);
 		}
 	}
