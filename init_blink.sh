@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 git submodule update --init --recursive
 cd libblink
 
@@ -13,6 +15,12 @@ requirements=(
 for cmd in "${requirements[@]}"; do
   command -v "$cmd" >/dev/null 2>&1 || { echo >&2 "Required program $cmd is not installed. Aborting."; exit 1; }
 done
+
+# Keep the WebAssembly API changes with the webapp.
+patch=../patches/libblink-x87.patch
+if ! git apply --reverse --check "$patch" 2>/dev/null; then
+  git apply "$patch"
+fi
 
 #---------------------
 # Run ./configure for a
@@ -41,5 +49,6 @@ emscripten_flags="\
 "
 emconfigure ./configure \
   --disable-all \
+  --enable-x87 \
   LDFLAGS="$emscripten_flags" \
   CPPFLAGS="-DHTML -D_FILE_OFFSET_BITS=64 -D_DARWIN_C_SOURCE -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_GNU_SOURCE"

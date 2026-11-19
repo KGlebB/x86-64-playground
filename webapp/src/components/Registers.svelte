@@ -7,6 +7,13 @@ import { registerNames, registerAlias, formatInteger } from '../core/inspector.j
 const blink = blinkStore.getInstance();
 
 let registers = registerNames.map(name => ({name, value:0n, previous:0n, valid:false}));
+const x87RegisterNames = Array.from({length:8}, (_, index) => `ST(${index})`);
+let x87 = null;
+
+function formatX87Word(word) {
+  return word === undefined ? '—' : `0x${word.toString(16).padStart(4, '0')}`;
+}
+
 function clearHighlights() {
   registers = registers.map(r => ({...r, previous:r.value}));
 }
@@ -125,6 +132,7 @@ let eflags = [
 function updateRegisters() {
 	if (!blink.canInspect()) {
     registers = registers.map(r => ({...r, valid:false, previous:0n, value:0n}));
+    x87 = null;
     eflagsStr = '—';
     eflagsUpdated = false;
     eflags = eflags.map(f => ({...f, value:false, updated:false}));
@@ -134,6 +142,7 @@ function updateRegisters() {
     const value = blink.m.readU64(r.name);
     return {...r, previous:r.valid ? r.value : value, value, valid:true};
   });
+  x87 = blink.m.readX87();
 
 	eflagsStr = blink.m.stringReadU64("flags");
 	const new_eflagsBytes = blink.m.readU64("flags");
@@ -203,8 +212,28 @@ $: $manual_render, updateRegisters();
 {/each}
         ]
     </p>
-    <br/>
-
+    <section class="x87" aria-label="x87">
+      <h3>x87</h3>
+      {#each x87RegisterNames as name, index}
+        {@const value = x87?.stack[index]}
+        <p class="register-row x87-row" class:stack-top={index === 0 && x87 !== null}>
+          <span class="name" title={index === 0 ? $t('register.x87Top') : undefined}>{name}</span>
+          <span class="int" class:empty={value === null}>
+            {#if value === undefined}—
+            {:else if value === null}{$t('register.x87Empty')}
+            {:else}{Object.is(value, -0) ? '-0' : value}
+            {/if}
+          </span>
+        </p>
+      {/each}
+      <dl class="x87-words">
+        <div class="register-row"><dt class="name">FCW</dt><dd class="int">{formatX87Word(x87?.fcw)}</dd></div>
+        <div class="register-row"><dt class="name">FSW</dt><dd class="int">{formatX87Word(x87?.fsw)}</dd></div>
+        <div class="register-row"><dt class="name">FTW</dt><dd class="int">{formatX87Word(x87?.ftw)}</dd></div>
+        <div class="register-row"><dt class="name">TOP</dt><dd class="int">{x87?.top ?? '—'}</dd></div>
+      </dl>
+      <p class="x87-precision">{$t('register.x87Precision')}</p>
+    </section>
 </section>
 
 
@@ -218,6 +247,18 @@ $: $manual_render, updateRegisters();
 }
 .register-row { display:grid; grid-template-columns:4ch minmax(0, 1fr); gap:.6rem; }
 .register-row .int { overflow-wrap:anywhere; min-width:0; }
+.x87 {
+  border-top:1px solid var(--theme-panel-border);
+  margin-top:.75rem;
+  padding-top:.5rem;
+}
+.x87 h3 { margin:0 0 .25rem; font-size:inherit; }
+.x87-row { grid-template-columns:5ch minmax(0, 1fr); }
+.stack-top { background:var(--accent-soft); border-radius:.25rem; font-weight:700; }
+.x87-row .int.empty { color:var(--theme-text-fg-disabled); }
+.x87-words { display:grid; grid-template-columns:repeat(auto-fit, minmax(13ch, 1fr)); gap:.125rem .5rem; margin:.5rem 0; }
+.x87-words dd { margin:0; }
+.x87-precision { color:var(--theme-text-fg-disabled); font-family:var(--font-family); font-size:.8rem; }
 .registers p{
   margin: 0;
 }

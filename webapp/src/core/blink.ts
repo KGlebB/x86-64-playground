@@ -19,7 +19,7 @@ import {
  *
  */
 class M_CLStruct {
-	readonly version = 1;
+	readonly version = 2;
 	readonly sizeof_key = 4;
 	readonly keys = {
 		version: { index: 0, pointer: false } /*number*/,
@@ -58,6 +58,11 @@ class M_CLStruct {
 		dis__max_line_len: { index: 27, pointer: false },
 		dis__current_line: { index: 28, pointer: false },
 		dis__buffer: { index: 29, pointer: true },
+
+		x87__st: { index: 30, pointer: true },
+		x87__fcw: { index: 31, pointer: false },
+		x87__fsw: { index: 32, pointer: false },
+		x87__ftw: { index: 33, pointer: false },
 	};
 	memory: WebAssembly.Memory;
 	memView: DataView;
@@ -114,6 +119,22 @@ class M_CLStruct {
 		const ptr = this.getPtr(key);
 		const little_endian = true;
 		return this.memView.getBigUint64(ptr, little_endian);
+	}
+
+	readX87() {
+		const ptr = this.getPtr("x87__st");
+		if (!ptr) return null;
+
+		const fcw = this.getPtr("x87__fcw");
+		const fsw = this.getPtr("x87__fsw");
+		const ftw = this.getPtr("x87__ftw");
+		const top = (fsw >> 11) & 7;
+		const stack = Array.from({length: 8}, (_, index) => {
+			const physical = (top + index) & 7;
+			const tag = (ftw >> (2 * physical)) & 3;
+			return tag === 3 ? null : this.memView.getFloat64(ptr + 8 * physical, true);
+		});
+		return {stack, fcw, fsw, ftw, top};
 	}
 
 	getPtr(key: keyof typeof this.keys): number {

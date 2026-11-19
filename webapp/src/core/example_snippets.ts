@@ -234,9 +234,30 @@ msg db "Hello, world!", 0xA
 msg_size equ $ - msg
 `;
 
+const x87_fasm = `; Step through the x87 stack from ST(0).
+format ELF64 executable 3
+segment readable executable
+entry $
+
+  fninit                 ; []
+  fld1                   ; [1]
+  fld qword [two]        ; [2, 1]
+  faddp st1, st0         ; [3]
+  fstp qword [result]    ; [], result = 3.0
+  fnstsw ax              ; AX = FSW
+
+  mov eax, 60
+  xor edi, edi
+  syscall
+
+segment readable writeable
+two dq 2.0
+result dq 0.0
+`;
+
 export interface Snippet {
 	id: string;
-	display_name: string;
+	titleKey: string;
 	description: string;
 	mode: Assemblers_key;
 	editorContent: string;
@@ -245,7 +266,7 @@ export interface Snippet {
 export const snippets: Record<string, Snippet> = {
 	syscall_GNU: {
 		id: "syscall_GNU",
-		display_name: "Syscall (GNU as)",
+		titleKey: "example.syscall",
 		description:
 			"A simple program that prints Hello World using raw syscalls, then quits. written for the Gnu Assembler, using the Intel syntax flavour",
 		mode: "GNU_trunk",
@@ -253,7 +274,7 @@ export const snippets: Record<string, Snippet> = {
 	},
 	syscall_FASM: {
 		id: "syscall_FASM",
-		display_name: "Syscall (Fasm)",
+		titleKey: "example.syscall",
 		description:
 			"A simple program that prints Hello World using raw syscalls, then quits. written for the Flat Assembler",
 		mode: "FASM_trunk",
@@ -261,7 +282,7 @@ export const snippets: Record<string, Snippet> = {
 	},
 	syscall_NASM: {
 		id: "syscall_NASM",
-		display_name: "Syscall (NASM)",
+		titleKey: "example.syscall",
 		description:
 			"A simple program that prints Hello World using raw syscalls, then quits. written for the Netwide Assembler (NASM)",
 		mode: "NASM_trunk",
@@ -269,7 +290,7 @@ export const snippets: Record<string, Snippet> = {
 	},
 	functions_GNU: {
 		id: "functions_GNU",
-		display_name: "Functions (GNU as)",
+		titleKey: "example.functions",
 		description:
 			"Hello world using function calls. written for the Gnu Assembler, using the Intel syntax flavour",
 		mode: "GNU_trunk",
@@ -277,7 +298,7 @@ export const snippets: Record<string, Snippet> = {
 	},
 	functions_FASM: {
 		id: "functions_FASM",
-		display_name: "Functions (Fasm)",
+		titleKey: "example.functions",
 		description:
 			"Hello world using function calls. written for the Flat Assembler",
 		mode: "FASM_trunk",
@@ -285,11 +306,18 @@ export const snippets: Record<string, Snippet> = {
 	},
 	functions_NASM: {
 		id: "functions_NASM",
-		display_name: "Functions (NASM)",
+		titleKey: "example.functions",
 		description:
 			"Hello world using function calls. written for the Netwide Assembler (NASM)",
 		mode: "NASM_trunk",
 		editorContent: functions_nasm,
+	},
+	x87_FASM: {
+		id: "x87_FASM",
+		titleKey: "example.x87",
+		description: "Adds two double values on the x87 stack and stores the result.",
+		mode: "FASM_trunk",
+		editorContent: x87_fasm,
 	},
 } as const;
 

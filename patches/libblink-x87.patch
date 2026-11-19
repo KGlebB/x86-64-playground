@@ -1,0 +1,52 @@
+diff --git a/blink/blinkenlib.c b/blink/blinkenlib.c
+index 3e4f1da..1547020 100644
+--- a/blink/blinkenlib.c
++++ b/blink/blinkenlib.c
+@@ -218,6 +218,13 @@ void update_clstruct(struct Machine *m) {
+   cls.rcx = (u32)&m->cx;
+   cls.rdx = (u32)&m->dx;
+ 
++#ifndef DISABLE_X87
++  cls.x87__st = (u32)m->fpu.st;
++  cls.x87__fcw = (u16)m->fpu.cw;
++  cls.x87__fsw = (u16)m->fpu.sw;
++  cls.x87__ftw = (u16)m->fpu.tw;
++#endif
++
+   // disassembled code buffer
+   // TODO: all this data should be in a global
+   // disassembler struct, this function should
+diff --git a/blink/blinkenlib.h b/blink/blinkenlib.h
+index 64407a5..b1f2233 100644
+--- a/blink/blinkenlib.h
++++ b/blink/blinkenlib.h
+@@ -11,14 +11,10 @@
+ #endif
+ 
+ /**
+- * cross-language struct.
+- * This is just a list of wasm 32-bit pointers
+- * that will be passed to js.
+- * Since passing a struct to js is complicated, we are
+- * passing an array of pointers instead. js will have an hardcoded
+- * list with the meaning of each pointer.
++ * Cross-language layout of 32-bit Wasm pointers and inline values.
++ * Keep the version and field indices in sync with M_CLStruct in blink.ts.
+  */
+-#define CLSTRUCT_VERSION 1
++#define CLSTRUCT_VERSION 2
+ struct clstruct {
+   u32 version;  // number
+ 
+@@ -58,6 +54,11 @@ struct clstruct {
+   u32 dis__max_line_len;  // number
+   u32 dis__current_line;  // number
+   u32 dis__buffer;
++
++  u32 x87__st;   // pointer to eight double values in physical register order
++  u32 x87__fcw;  // 16-bit control word
++  u32 x87__fsw;  // 16-bit status word, including TOP
++  u32 x87__ftw;  // 16-bit tag word in physical register order
+ };
+ 
+ void blinkenlib_run_fast();

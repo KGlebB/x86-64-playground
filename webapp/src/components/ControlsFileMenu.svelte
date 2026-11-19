@@ -90,7 +90,7 @@
           {#each snippetsList as snippet}
             <div {...$item} use:item
               on:m-click={_ => handleSnippetClick(snippet.id)}
-              >{$t(snippet.id.startsWith('syscall') ? 'example.syscall' : 'example.functions')} ({snippet.mode.startsWith('GNU') ? 'GNU as' : snippet.mode.startsWith('NASM') ? 'NASM' : 'FASM'})</div>
+              >{$t(snippet.titleKey)} ({snippet.mode.startsWith('GNU') ? 'GNU as' : snippet.mode.startsWith('NASM') ? 'NASM' : 'FASM'})</div>
           {/each}
       </div>
     {/if}
