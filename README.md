@@ -4,7 +4,7 @@
 
 A bilingual x86-64 assembly playground with step-by-step debugging, x87 stack inspection, and live memory views. Runs entirely in your browser.
 
-[Open x64 Lab](https://kglebb.github.io/x86-64-playground/) · [Русский](README.ru.md) · [Original project](https://github.com/robalb/x86-64-playground)
+[Open x64 Lab](https://kglebb.github.io/x86-64-playground/) · [Design system](https://kglebb.github.io/x86-64-playground/docs.html) · [Русский](README.ru.md) · [Original project](https://github.com/robalb/x86-64-playground)
 
 [![GitHub Pages](https://img.shields.io/github/actions/workflow/status/KGlebB/x86-64-playground/deploy_github_pages.yml?label=GitHub%20Pages)](https://github.com/KGlebB/x86-64-playground/actions/workflows/deploy_github_pages.yml) [![License: ISC](https://img.shields.io/badge/License-ISC-7c3aed)](LICENSE.txt)
 
@@ -13,6 +13,8 @@ A bilingual x86-64 assembly playground with step-by-step debugging, x87 stack in
 ## Features
 
 - Assemble with FASM, NASM, or GNU as, step through instructions, and inspect disassembly, flags, and terminal output.
+- Syntax highlighting follows the selected assembler and supports Intel syntax in GNU as.
+- Hover over a supported instruction mnemonic to see a short description and a link to the instruction reference. With the caret on the mnemonic, press **Ctrl+K**, then **Ctrl+I** (**Cmd+K**, then **Cmd+I** on macOS).
 - View the low 64, 32, or 16 bits of general-purpose registers in hexadecimal, decimal, octal, or binary. Decimal values support signed and unsigned interpretation.
 - Step through x87 instructions and inspect the logical stack `ST(0)`–`ST(7)`, empty slots, the stack pointer `TOP`, and the control, status, and tag words `FCW`, `FSW`, and `FTW`. Blink represents x87 stack values as 64-bit floating-point numbers.
 - Inspect memory as a stack byte dump or a live table. **By address** reads 1-, 2-, 4-, or 8-byte little-endian elements from an expression such as `rsp+16` or `array+4`. FASM and NASM labels resolve the element size for unambiguous declarations.
