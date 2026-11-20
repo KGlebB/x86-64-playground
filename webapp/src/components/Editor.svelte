@@ -2,7 +2,7 @@
 import {blinkStore, state, mode, editorContent_write} from '../core/store'
 import {assemblers} from '../core/assemblers'
 import {onMount} from 'svelte'
-import {t} from '../core/uiState.js';
+import {t, preferences} from '../core/uiState.js';
 import Icon from './Icon.svelte';
 import { createEditor } from "prism-code-editor"
 
@@ -56,7 +56,7 @@ function renderEditor(signal){
     matchBrackets(),
     highlightSelectionMatches(),
     defaultCommands(),
-    asmHints(signal, () => $t('editor.hintReference')),
+    asmHints(signal, () => $preferences.locale, () => $t('editor.hintReference')),
   )
   setIgnoreTab(true)
   labelEditor($t('editor.label'))

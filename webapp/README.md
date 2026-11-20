@@ -12,7 +12,7 @@ npm run preview
 
 Serve the application under `/x86-64-playground/`. The committed WASM and assembler binaries are sufficient for interface development. See [the emulator build guide](../docs/setup.md) to change Blink itself.
 
-Vite builds both the playground and the [design system reference](https://kglebb.github.io/x86-64-playground/docs.html). The reference also runs locally at `/x86-64-playground/docs.html` and uses the playground's saved theme.
+Vite builds the playground, the instruction reference at `/x86-64-playground/reference.html`, and the [design system reference](https://kglebb.github.io/x86-64-playground/docs.html). Both reference pages use the playground's saved theme.
 
 ## UI state and translations
 
@@ -20,7 +20,7 @@ Vite builds both the playground and the [design system reference](https://kglebb
 
 The global header and toolbar are shared by desktop and mobile layouts. Desktop panels use PaneForge. Narrow screens keep all five panels mounted behind accessible tabs. Theme and locale changes update text and CSS without recreating the editor or emulator.
 
-Prism Code Editor uses the grammar for the selected assembler. Hover over an instruction or press **Ctrl+K**, then **Ctrl+I** with the caret on its mnemonic to show the reference hint. While editing, **Tab** indents and **Escape** restores Tab navigation.
+Prism Code Editor uses the grammar for the selected assembler. Hover over an instruction or press **Ctrl+K**, then **Ctrl+I** with the caret on its mnemonic to show a localized hint with a link to the corresponding entry. The reference catalog joins the upstream instruction list with Russian descriptions and additional x87 entries. While editing, **Tab** indents and **Escape** restores Tab navigation.
 
 ## Register and memory inspection
 

@@ -8,6 +8,21 @@ test('English and Russian dictionaries have exactly the same complete keys', () 
   assert.deepEqual(Object.keys(messages.en).sort(),Object.keys(messages.ru).sort());
   for(const locale of ['en','ru'])for(const [key,value] of Object.entries(messages[locale]))assert.ok(value.trim(),`${locale}:${key}`);
 });
+test('instruction reference translates the base catalog and covers the x87 example', () => {
+  const readCatalog = file => JSON.parse(fs.readFileSync(new URL(`../src/assets/${file}`, import.meta.url), 'utf8'));
+  const upstream = readCatalog('asm-docs-amd64.json');
+  const russian = readCatalog('asm-docs-ru.json');
+  const x87 = readCatalog('asm-docs-x87.json');
+  assert.deepEqual(Object.keys(russian).sort(), Object.keys(upstream).sort());
+  for (const [mnemonic, text] of Object.entries(russian)) assert.match(text, /[а-яё]/i, mnemonic);
+  for (const [mnemonic, [ru, en]] of Object.entries(x87)) {
+    assert.match(ru, /[а-яё]/i, mnemonic);
+    assert.ok(en.trim(), mnemonic);
+  }
+  for (const mnemonic of ['FNINIT', 'FLD1', 'FLD', 'FADDP', 'FSTP', 'FNSTSW']) {
+    assert.match(x87[mnemonic]?.[2] ?? '', new RegExp(`^${mnemonic}\\b`, 'i'));
+  }
+});
 test('parameter formatting, stable error codes and exit messages', () => {
   assert.equal(translate('ru','input.overLimit',{count:8}),'Последние 8 байт превышают размер чтения и будут пропущены.');
   assert.equal(translate('en','field.bits',{bits:32}),'32 bit');

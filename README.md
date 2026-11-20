@@ -14,7 +14,7 @@ A bilingual x86-64 assembly playground with step-by-step debugging, x87 stack in
 
 - Assemble with FASM, NASM, or GNU as, step through instructions, and inspect disassembly, flags, and terminal output.
 - Syntax highlighting follows the selected assembler and supports Intel syntax in GNU as.
-- Hover over a supported instruction mnemonic to see a short description and a link to the instruction reference. With the caret on the mnemonic, press **Ctrl+K**, then **Ctrl+I** (**Cmd+K**, then **Cmd+I** on macOS).
+- Hover over a supported instruction mnemonic to see a hint in the current UI language and open its entry in the built-in reference. With the caret on the mnemonic, press **Ctrl+K**, then **Ctrl+I** (**Cmd+K**, then **Cmd+I** on macOS). The reference includes an x87 filter and FASM examples for common x87 instructions.
 - View the low 64, 32, or 16 bits of general-purpose registers in hexadecimal, decimal, octal, or binary. Decimal values support signed and unsigned interpretation.
 - Step through x87 instructions and inspect the logical stack `ST(0)`–`ST(7)`, empty slots, the stack pointer `TOP`, and the control, status, and tag words `FCW`, `FSW`, and `FTW`. Blink represents x87 stack values as 64-bit floating-point numbers.
 - Inspect memory as a stack byte dump or a live table. **By address** reads 1-, 2-, 4-, or 8-byte little-endian elements from an expression such as `rsp+16` or `array+4`. FASM and NASM labels resolve the element size for unambiguous declarations.

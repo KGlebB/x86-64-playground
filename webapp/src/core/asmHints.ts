@@ -3,21 +3,21 @@ import { addPointerListener } from "prism-code-editor/hover";
 import { addEditorHotkey, addEditorHotkeySequence, setIgnoreTab } from "prism-code-editor/commands";
 import { getClosestToken } from "prism-code-editor/utils";
 
-type Hint = [description: string, url: string];
+type Hint = { mnemonic: string; ru: string; en: string };
 
-let hints: Record<string, Hint> | undefined;
+let hints: Map<string, Hint> | undefined;
 let loading: Promise<void> | undefined;
 
 const loadHints = () =>
-	(loading ??= import("../assets/asm-docs-amd64.json").then((m) => {
-		hints = m.default as Record<string, Hint>;
+	(loading ??= import("./instructionCatalog.js").then((m) => {
+		hints = m.instructionCatalog;
 	}).catch(() => {
 		loading = undefined;
 	}));
 
-const getHint = (mnemonic: string) => hints?.[mnemonic.toUpperCase()];
+const getHint = (mnemonic: string) => hints?.get(mnemonic.toUpperCase());
 
-export const asmHints = (signal: AbortSignal, referenceLabel: () => string) => (editor: PrismEditor) => {
+export const asmHints = (signal: AbortSignal, getLocale: () => 'ru' | 'en', referenceLabel: () => string) => (editor: PrismEditor) => {
 	const tooltip = document.createElement("p");
 	tooltip.className = "asmhint";
 	tooltip.setAttribute("role", "tooltip");
@@ -56,12 +56,13 @@ export const asmHints = (signal: AbortSignal, referenceLabel: () => string) => (
 
 	const open = (token: Element, hint: Hint) => {
 		current = token;
+		const locale = getLocale();
 		const link = document.createElement("a");
-		link.href = hint[1];
+		link.href = `${import.meta.env.BASE_URL}reference.html?lang=${locale}#${hint.mnemonic}`;
 		link.target = "_blank";
 		link.rel = "noopener";
 		link.textContent = referenceLabel();
-		tooltip.replaceChildren(hint[0], link);
+		tooltip.replaceChildren(hint[locale], ' ', link);
 		document.body.append(tooltip);
 		const r = token.getBoundingClientRect();
 		const { width, height } = tooltip.getBoundingClientRect();
