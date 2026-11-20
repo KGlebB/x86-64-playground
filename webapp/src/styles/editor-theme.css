@@ -6,7 +6,7 @@
 }
 .prism-code-editor textarea::selection {color:transparent;background:var(--selection);}
 .prism-code-editor [class*=language-],.prism-code-editor .token.punctuation {color:var(--theme-text-fg);}
-.prism-code-editor .token.keyword,.prism-code-editor .token.operator {color:var(--syntax-keyword);}
+.prism-code-editor .token.keyword,.prism-code-editor .token.operator,.prism-code-editor .token.instruction {color:var(--syntax-keyword);}
 .prism-code-editor .token.number,.prism-code-editor .token.constant,.prism-code-editor .token.boolean {color:var(--syntax-number);}
 .prism-code-editor .token.string,.prism-code-editor .token.char {color:var(--syntax-string);}
 .prism-code-editor .token.register,.prism-code-editor .token.variable {color:var(--syntax-register);}

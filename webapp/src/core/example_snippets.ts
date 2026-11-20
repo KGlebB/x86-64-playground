@@ -35,16 +35,16 @@ segment readable executable
 entry $
 
   ; sys_write
-	mov	edx,msg_size
-	lea	rsi,[msg]
-	mov	edi,1
-	mov	eax,1
-	syscall
+  mov	edx,msg_size
+  lea	rsi,[msg]
+  mov	edi,1
+  mov	eax,1
+  syscall
 
   ; sys_exit
-	xor	edi,edi
-	mov	eax,60
-	syscall
+  xor	edi,edi
+  mov	eax,60
+  syscall
 
 segment readable writeable
 msg db 'Hello 64-bit world!',0xA
@@ -126,7 +126,7 @@ exit:
 .data
 hello_string:
   .asciz "Hello, world!\\n"
-  
+
 `;
 
 const functions_fasm = `;---------------------

@@ -1,5 +1,5 @@
 diff --git a/blink/blinkenlib.c b/blink/blinkenlib.c
-index 3e4f1da..1547020 100644
+index 60594ed..d970b76 100644
 --- a/blink/blinkenlib.c
 +++ b/blink/blinkenlib.c
 @@ -218,6 +218,13 @@ void update_clstruct(struct Machine *m) {

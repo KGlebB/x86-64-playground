@@ -12,17 +12,23 @@ npm run preview
 
 Serve the application under `/x86-64-playground/`. The committed WASM and assembler binaries are sufficient for interface development. See [the emulator build guide](../docs/setup.md) to change Blink itself.
 
+Vite builds both the playground and the [design system reference](https://kglebb.github.io/x86-64-playground/docs.html). The reference also runs locally at `/x86-64-playground/docs.html` and uses the playground's saved theme.
+
 ## UI state and translations
 
 `src/core/preferences.js` reads and validates `x64lab.preferences` in browser storage. The first locale is Russian and the initial theme follows the OS. `uiState.js` exposes the preference store and reactive translator; `messages.js` contains matching English/Russian keys and parameterized errors. UI preferences do not change the existing saved source or Share format. Theme colors and Prism variables are in `src/styles/`.
 
 The global header and toolbar are shared by desktop and mobile layouts. Desktop panels use PaneForge. Narrow screens keep all five panels mounted behind accessible tabs. Theme and locale changes update text and CSS without recreating the editor or emulator.
 
+Prism Code Editor uses the grammar for the selected assembler. Hover over an instruction or press **Ctrl+K**, then **Ctrl+I** with the caret on its mnemonic to show the reference hint. While editing, **Tab** indents and **Escape** restores Tab navigation.
+
 ## Register and memory inspection
 
-General-purpose register widths are 64/32/16 bits; RIP stays 64-bit. Values use BigInt, and signed interpretation applies only to decimal output. Memory elements use little-endian groups of 1/2/4/8 bytes. Missing bytes display Unavailable rather than zero.
+General-purpose register widths are 64/32/16 bits. RIP stays 64-bit. Integer values use BigInt. Signed interpretation applies to decimal output. The x87 inspector shows the logical stack and its control, status, tag and TOP fields from Blink's version 2 debug structure.
 
-The memory table accepts an address, 64-bit register, or FASM/NASM label, optionally followed by a numeric offset. Addresses accept `0x`, `0o`, `0b`, or decimal notation; qualify local labels such as `array.local`. Selecting a label enables Auto element size. FASM symbolic output and NASM ELF symbols plus listings provide addresses and unambiguous types. Mixed declarations require a manual size. Row count is independent of array length; later rows may show following memory. GNU as and uploaded ELF programs use manual addresses/registers. Floating-point decoding is not provided.
+Memory elements use little-endian groups of 1, 2, 4 or 8 bytes. Unmapped bytes display **Unavailable**. The address view accepts a numeric address, 64-bit register, or FASM/NASM label, optionally followed by a numeric offset. Qualify local labels such as `array.local`. Selecting an unambiguous FASM/NASM label enables **Auto** element size. GNU as and uploaded ELF programs use manual addresses and sizes.
+
+The FASM segment view combines ELF64 writable load ranges and FASM assembly records to show typed elements, arrays and reserved storage. The **Float64** option interprets 8 bytes as a double and shows the original bits in HEX.
 
 Values refresh after steps, stops, input waits, and Refresh, plus emulator yields during continuous execution (up to five times per second). The debugger does not write memory.
 

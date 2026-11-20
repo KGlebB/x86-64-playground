@@ -1,17 +1,19 @@
 <script>
-import {blinkStore, state, editorContent_write, editorContent_read} from '../core/store'
+import {blinkStore, state, mode, editorContent_write} from '../core/store'
+import {assemblers} from '../core/assemblers'
 import {onMount} from 'svelte'
 import {t} from '../core/uiState.js';
 import Icon from './Icon.svelte';
 import { createEditor } from "prism-code-editor"
 
-// Prism grammars
-import "prism-code-editor/prism/languages/nasm"
+// Prism grammars for all our assembler flavours
+import "../core/syntax"
+import { asmHints } from "../core/asmHints"
 
 // Editor styles
 import "prism-code-editor/layout.css"
 import "prism-code-editor/scrollbar.css"
-
+import "prism-code-editor/guides.css"
 
 // Non critical extensions (could be lazy loaded)
 import { indentGuides } from "prism-code-editor/guides"
@@ -35,7 +37,7 @@ $: $state && (
     blink.stopReason?.loadFail)
 
 
-function renderEditor(){
+function renderEditor(signal){
   console.log("editor: rendering everything")
   if(!editor_elem)
     return;
@@ -43,7 +45,7 @@ function renderEditor(){
   editor = createEditor(
     editor_elem,
     {
-      language: "nasm",
+      language: syntax,
       value: $blinkStore.editorContent_read,
       onUpdate: content=>{
         removeErrors()
@@ -54,11 +56,14 @@ function renderEditor(){
     matchBrackets(),
     highlightSelectionMatches(),
     defaultCommands(),
+    asmHints(signal, () => $t('editor.hintReference')),
   )
-  //annoying but required since this editor is trapping focus, causing
-  //a11y issues
   setIgnoreTab(true)
   labelEditor($t('editor.label'))
+  editor.textarea.setAttribute("aria-describedby", "editor-tab-hint")
+  editor.container.addEventListener("pointerdown", () => setIgnoreTab(false), {signal})
+  editor.textarea.addEventListener("input", () => setIgnoreTab(false), {signal})
+  editor.textarea.addEventListener("blur", () => setIgnoreTab(true), {signal})
 }
 
 function labelEditor(text){ editor_elem?.querySelector('textarea')?.setAttribute('aria-label',text); }
@@ -91,15 +96,15 @@ function renderErrors(){
 
   //render an error
   for(let err of blink.assembler_errors){
+    const line = lines[err.line]
+    if(!line || line.querySelector(".editor__lineerror")){
+      continue
+    }
     const element = document.createElement('div');
     rendered_errors.push(element)
     element.className = "editor__lineerror"
-    if (!lines[err.line]) continue;
-    let lineLength = 2 + lines[err.line].textContent.length
-    element.innerText = (" ".repeat(lineLength)) + err.error
-    if(lines[err.line] && element.parentNode != lines[err.line]){
-      lines[err.line].append(element)
-    }
+    element.innerText = (" ".repeat(2 + line.textContent.length)) + err.error
+    line.prepend(element)
   }
 }
 
@@ -115,10 +120,19 @@ function updateEditor(){
 
 $: $editorContent_write && updateEditor()
 
+$: syntax = assemblers[$mode].syntax
+
+$: editor && editor.setOptions({ language: syntax })
+
 $: $state && renderErrors();
 
 onMount(() => {
-  renderEditor();
+  const events = new AbortController();
+  renderEditor(events.signal);
+  return () => {
+    events.abort();
+    editor?.remove();
+  };
 })
 </script>
 
@@ -136,6 +150,7 @@ onMount(() => {
       <button on:click={()=>blinkStore.setUploadedElfName("")}>{$t('action.back')}</button>
     </div>
   {/if}
+  <p id="editor-tab-hint" class="visually-hidden">{$t('editor.tabHint')}</p>
   <div class="editor" bind:this={editor_elem}
     class:hidden={$blinkStore.uploadedElf}> </div>
 </div>

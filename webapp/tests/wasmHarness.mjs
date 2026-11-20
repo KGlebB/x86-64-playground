@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import factory from '../src/assets/blinkenlib.js';
+import {gnuLinker} from '../src/core/linker.js';
 
 // The committed Emscripten bundle targets browsers; supply its minimal window check.
 globalThis.window ??= {};
@@ -46,7 +47,8 @@ export async function assemble(mode, source) {
   let code = await run(commands[mode]);
   if (code === 0 && mode !== 'FASM') {
     install('linker', 'gnu-ld.2.43.50.elf');
-    code = await run('/linker /program.o -o /program');
+    M.FS.writeFile('/link.ld', gnuLinker.linkerScript);
+    code = await run(gnuLinker.commands);
   }
   if (code !== 0) throw new Error(logs);
   const elf = M.FS.readFile('/program');

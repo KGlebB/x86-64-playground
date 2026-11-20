@@ -1,3 +1,4 @@
+import { resolve } from 'path'
 import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 
@@ -6,4 +7,13 @@ export default defineConfig({
   base: '/x86-64-playground/',
   plugins: [svelte()],
   assetsInclude: ['**/*.elf'],
+  json: { stringify: true },
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        docs: resolve(__dirname, 'docs.html'),
+      },
+    },
+  },
 })
