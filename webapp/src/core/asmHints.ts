@@ -62,6 +62,10 @@ export const asmHints = (signal: AbortSignal, getLocale: () => 'ru' | 'en', refe
 		link.target = "_blank";
 		link.rel = "noopener";
 		link.textContent = referenceLabel();
+		link.addEventListener("click", () => {
+			clearTimeout(closeTimer);
+			closeTimer = setTimeout(hide, 0);
+		}, { once: true });
 		tooltip.replaceChildren(hint[locale], ' ', link);
 		document.body.append(tooltip);
 		const r = token.getBoundingClientRect();
