@@ -3,6 +3,8 @@ const decoder = new TextDecoder();
 const widths = {db:1, dw:2, dd:4, dq:8, resb:1, resw:2, resd:4, resq:8, rb:1, rw:2, rd:4, rq:8};
 const identifier = '[a-zA-Z_.$?@][a-zA-Z0-9_.$?@]*';
 const declaration = new RegExp(`^(${identifier})\\s*:|^(${identifier})\\s+(?=(?:times\\b|d[bwdq]\\b|res[bwdq]\\b|r[bwdq]\\b))`, 'i');
+const dataDirective = /^(?:times\s+.+?\s+)?(db|dw|dd|dq|resb|resw|resd|resq|rb|rw|rd|rq)\b/i;
+const floatLiteral = /^[+-]?(?:\d+\.\d*|\.\d+)(?:e[+-]?\d+)?$/i;
 
 function binary(bytes) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -46,7 +48,7 @@ function declarationTypes(lines) {
       line = line.slice(match[0].length).trim();
     }
     if (!line) continue;
-    const data = /^(?:times\s+.+?\s+)?(db|dw|dd|dq|resb|resw|resd|resq|rb|rw|rd|rq)\b/i.exec(line);
+    const data = dataDirective.exec(line);
     if (data) {
       active.push(...pending);
       pending = [];
@@ -61,10 +63,14 @@ function declarationTypes(lines) {
   return types;
 }
 
+function isElf64(bytes, view) {
+  return bytes.length >= 64 && view.getUint32(0, false) === 0x7f454c46 &&
+    bytes[4] === 2 && bytes[5] === 1 && view.getUint16(18, true) === 62;
+}
+
 export function parseElfSymbols(bytes) {
   const {view:v, range, string} = binary(bytes);
-  range(0, 64);
-  if (v.getUint32(0, false) !== 0x7f454c46 || bytes[4] !== 2 || bytes[5] !== 1 || v.getUint16(18, true) !== 62) throw new Error('Expected a little-endian x86-64 ELF.');
+  if (!isElf64(bytes, v)) throw new Error('Expected a little-endian x86-64 ELF.');
   const start = Number(v.getBigUint64(40, true));
   const stride = v.getUint16(58, true);
   const count = v.getUint16(60, true);
@@ -108,7 +114,66 @@ export function parseNasmSymbols(elf, listing) {
   return parseElfSymbols(elf).map(s => ({...s, size:types.get(s.name) ?? null}));
 }
 
-export function parseFasmSymbols(bytes) {
+function writableElfSegments(bytes) {
+  const {view:v, range} = binary(bytes);
+  if (!isElf64(bytes, v)) return [];
+  const start = Number(v.getBigUint64(32, true));
+  const stride = v.getUint16(54, true);
+  const count = v.getUint16(56, true);
+  if (!count) return [];
+  if (stride < 56) throw new Error('Invalid ELF program header size.');
+  const headersEnd = start + stride * count;
+  range(start, stride * count);
+  const segments = [];
+  for (let p = start; p < start + stride * count; p += stride) {
+    // PT_LOAD with both PF_R and PF_W.
+    if (v.getUint32(p, true) !== 1 || (v.getUint32(p + 4, true) & 6) !== 6) continue;
+    const base = v.getBigUint64(p + 16, true);
+    const size = v.getBigUint64(p + 40, true);
+    const end = base + size;
+    if (end > (1n << 64n) || !Number.isSafeInteger(Number(size))) throw new Error('Invalid ELF segment range.');
+    // FASM maps the ELF headers into the first segment when its file offset is zero.
+    const address = base + (v.getBigUint64(p + 8, true) === 0n ? BigInt(headersEnd) : 0n);
+    if (address < end) segments.push({address, end, spans:[]});
+  }
+  return segments;
+}
+
+function fasmDataSpans(segments, lines, symbols) {
+  const namesByAddress = new Map();
+  for (const {name, address} of symbols) {
+    if (!namesByAddress.has(address)) namesByAddress.set(address, []);
+    namesByAddress.get(address).push(name);
+  }
+  for (let i = 0; i < lines.length; i++) {
+    const {address, text} = lines[i];
+    let body = text;
+    let label;
+    let match;
+    while ((match = declaration.exec(body))) {
+      label ??= match[1] || match[2];
+      body = body.slice(match[0].length).trim();
+    }
+    const data = dataDirective.exec(body);
+    if (!data) continue;
+    const segment = segments.find(s => address >= s.address && address < s.end);
+    if (!segment) continue;
+    // The segment directive is recorded at the end of the preceding segment.
+    // The final declaration can also extend into memory beyond the end of the ELF file.
+    const next = lines[i + 1]?.address ?? segment.end;
+    const end = next < segment.end ? next : segment.end;
+    const type = data[1].toLowerCase();
+    const size = widths[type];
+    const bytes = end - address;
+    if (bytes <= 0n || bytes % BigInt(size) !== 0n) continue;
+    const names = namesByAddress.get(address) ?? [];
+    const name = names.find(n => n === label || (label?.startsWith('.') && n.endsWith(label))) ?? names[0];
+    const float = type === 'dq' && body.slice(data[0].length).replace(/\s/g, '').split(',').every(value => floatLiteral.test(value));
+    segment.spans.push({address, end, size, type, name, float});
+  }
+}
+
+export function parseFasmDebug(bytes, elf) {
   const {view:v, range, string} = binary(bytes);
   range(0, 56);
   if (v.getUint32(0, true) !== 0x1a736166) throw new Error('Invalid FASM symbolic file.');
@@ -137,7 +202,16 @@ export function parseFasmSymbols(bytes) {
   const dump = v.getUint32(40, true), dumpLength = v.getUint32(44, true);
   range(dump, dumpLength);
   const lines = [];
-  for (let p = dump; p + 28 <= dump + dumpLength; p += 28) lines.push(readLine(v.getUint32(p + 4, true)));
+  const absoluteLines = [];
+  // FASM symbolic information format, assembly dump (table 4).
+  for (let p = dump; p + 28 <= dump + dumpLength; p += 28) {
+    const text = readLine(v.getUint32(p + 4, true));
+    lines.push(text);
+    // Virtual blocks do not occupy guest memory. Reservations in loadable segments do.
+    if (elf && bytes[p + 24] === 0 && !(bytes[p + 26] & 1)) {
+      absoluteLines.push({text:text.trim(), address:v.getBigUint64(p + 8, true)});
+    }
+  }
   const types = declarationTypes(lines);
   const symbols = [];
   for (let p = start; p < start + length; p += 32) {
@@ -162,5 +236,11 @@ export function parseFasmSymbols(bytes) {
     const size = types.has(name) ? inferred : ([1,2,4,8].includes(attached) ? attached : null);
     symbols.push({name, address:v.getBigUint64(p, true), size:size ?? null});
   }
-  return symbols;
+  const segments = elf ? writableElfSegments(elf) : [];
+  fasmDataSpans(segments, absoluteLines, symbols);
+  return {symbols, segments};
+}
+
+export function parseFasmSymbols(bytes) {
+  return parseFasmDebug(bytes).symbols;
 }

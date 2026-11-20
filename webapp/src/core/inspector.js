@@ -67,3 +67,65 @@ export function littleEndianInteger(bytes) {
   for (let i = bytes.length - 1; i >= 0; i--) result = (result << 8n) | BigInt(bytes[i]);
   return result;
 }
+
+const float64Bits = new DataView(new ArrayBuffer(8));
+
+export function formatFloat64(bits) {
+  float64Bits.setBigUint64(0, bits, true);
+  const value = float64Bits.getFloat64(0, true);
+  if (Object.is(value, -0)) return '-0.0';
+  const text = String(value);
+  return /^-?\d+$/.test(text) ? `${text}.0` : text;
+}
+
+export function formatMemoryInteger(value, size, radix, signed) {
+  if (size === 8 && radix === 16) return `0x${value.toString(16).padStart(16, '0')}`;
+  return formatInteger(value, size * 8, radix, signed);
+}
+
+/** Index runs by row without expanding large arrays or zero-filled ranges. */
+export function layoutSegmentRows(segments) {
+  const runs = [];
+  let length = 0;
+  for (const [segmentIndex, segment] of segments.entries()) {
+    const append = span => {
+      const count = Number(span.end - span.address) / span.size;
+      runs.push({...span, segment, segmentIndex, first: length, count});
+      length += count;
+    };
+    let address = segment.address;
+    const spans = [...segment.spans].sort((a, b) => a.address < b.address ? -1 : Number(a.address > b.address));
+    for (const span of spans) {
+      if (span.address < address) continue;
+      if (address < span.address) append({address, end:span.address, size:1});
+      append(span);
+      address = span.end;
+    }
+    if (address < segment.end) append({address, end:segment.end, size:1});
+  }
+  return {runs, length};
+}
+
+export function readSegmentRows(layout, first, count, readMemory) {
+  const rows = [];
+  for (const run of layout.runs) {
+    if (run.first >= first + count) break;
+    const start = Math.max(0, first - run.first);
+    const end = Math.min(run.count, first + count - run.first);
+    if (start >= end) continue;
+    const width = BigInt(run.size);
+    const address = run.address + BigInt(start) * width;
+    const data = readMemory(address, (end - start) * run.size);
+    for (let i = start; i < end; i++) {
+      const offset = (i - start) * run.size;
+      rows.push({
+        index: run.first + i, address: address + BigInt(i - start) * width,
+        segment: run.segment, segmentIndex: run.segmentIndex,
+        size: run.size, type: run.type, float: run.float,
+        name: run.name && run.count > 1 ? `${run.name}[${i}]` : run.name,
+        value: littleEndianInteger(data.slice(offset, offset + run.size)),
+      });
+    }
+  }
+  return rows;
+}

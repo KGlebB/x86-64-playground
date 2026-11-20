@@ -1,7 +1,7 @@
 import blinkenlib from "../assets/blinkenlib.js";
 import {InspectorError} from './messages.js';
 import { readMemoryRange } from './inspector.js';
-import { parseFasmSymbols, parseNasmSymbols } from './debugSymbols.js';
+import { parseFasmDebug, parseNasmSymbols } from './debugSymbols.js';
 import {
 	type AssemblerMode,
 	assemblers,
@@ -266,6 +266,7 @@ const signals_info = {
 export class Blink {
 	/** Metadata belongs to the last successful source compilation only. */
 	debugSymbols: Array<{name:string; address:bigint; size:number|null}> = [];
+	debugSegments: ReturnType<typeof parseFasmDebug>['segments'] = [];
 	debugSource = '';
 	debugInfoError = '';
 	programGeneration = 0;
@@ -720,6 +721,7 @@ export class Blink {
 		this.programAvailable = false;
 		this.programGeneration++;
 		this.debugSymbols = [];
+		this.debugSegments = [];
 		this.debugSource = '';
 		this.debugInfoError = '';
 	}
@@ -728,7 +730,11 @@ export class Blink {
 		this.programAvailable = true;
 		try {
 			const FS = this.Module.FS;
-			if (this.mode.id === 'FASM_trunk') this.debugSymbols = parseFasmSymbols(FS.readFile('/program.fas'));
+			if (this.mode.id === 'FASM_trunk') {
+				const {symbols, segments} = parseFasmDebug(FS.readFile('/program.fas'), FS.readFile('/program'));
+				this.debugSymbols = symbols;
+				this.debugSegments = segments;
+			}
 			if (this.mode.id === 'NASM_trunk') this.debugSymbols = parseNasmSymbols(FS.readFile('/program'), FS.readFile('/program.lst', {encoding:'utf8'}));
 		} catch (error) {
 			this.debugSymbols = [];
